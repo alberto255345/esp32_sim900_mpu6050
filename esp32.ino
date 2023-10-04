@@ -2,9 +2,10 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
-#define I2C_SDA 2
-#define I2C_SCL 4
 
+unsigned long currentmillis;
+unsigned long previousmillis;
+const unsigned long interval = 5000;
 
 SoftwareSerial SIM900(14, 12); // configure software serial port
 
@@ -17,11 +18,11 @@ const char* PWD = "vivo";
 
 void setup() {     
   Wire.begin();  
-  SIM900.begin(19200);
-  Serial.begin(19200); 
+  SIM900.begin(9600);
+  Serial.begin(9600); 
   while (!Serial)
     delay(10);
-  Serial.print("power up" );
+  Serial.println("power up" );
   // Try to initialize!
   if (!mpu.begin()) {
     Serial.println("Failed to find MPU6050 chip");
@@ -90,6 +91,17 @@ void setup() {
     break;
   }
 
+
+  if (!SIM900.available()){
+    Serial.println("SIM900 failed");
+    while(!SIM900.available()){
+      delay(500);
+      SIM900.println("AT+CSQ"); // Signal quality check
+      delay(500);
+      Serial.write(char (SIM900.read()));
+    }
+  }
+  Serial.println("SIM900 ok");
   Serial.println("");
   delay(5000);
 
@@ -99,6 +111,7 @@ void setup() {
 void loop()
 {
   Serial.println("loop init");
+  currentmillis = millis();
   delay(200);
   Serial.println("");
   /* Get new sensor events with the readings */
@@ -129,79 +142,119 @@ void loop()
   Serial.println("");
   delay(500);
 
+  String jsonData = "{";
+jsonData += "\"acceleration_x\":" + String(a.acceleration.x) + ",";
+jsonData += "\"acceleration_y\":" + String(a.acceleration.y) + ",";
+jsonData += "\"acceleration_z\":" + String(a.acceleration.z) + ",";
+jsonData += "\"gyro_x\":" + String(g.gyro.x) + ",";
+jsonData += "\"gyro_y\":" + String(g.gyro.y) + ",";
+jsonData += "\"gyro_z\":" + String(g.gyro.z) + ",";
+jsonData += "\"temperature\":" + String(temp.temperature);
+jsonData += "}";
+
+
   if (SIM900.available())
   {
+    if ( currentmillis - previousmillis > interval )
+    {
+      previousmillis = currentmillis;
       Serial.println("SIM 900 is ready");
       Serial.println("SubmitHttpRequest - started" );
-      SubmitHttpRequest();
+      SubmitHttpRequest(jsonData);
       Serial.println("SubmitHttpRequest - finished" );
       delay(5000);  
+    }
   }
   else
   {
     Serial.println("SIM 900 is not ready");
+    if ( currentmillis - previousmillis > interval )
+    {
+      previousmillis = currentmillis;
+      SIM900.begin(19200);
+    }
   }
 
 }
 
-void SubmitHttpRequest()
+void SubmitHttpRequest(String jsonData)
 {
  
   SIM900.println("AT+CSQ"); // Signal quality check
 
-  delay(100);
+  delay(50);
  
   ShowSerialData();// this code is to show the data from gprs shield, in order to easily see the process of how the gprs shield submit a http request, and the following is for this purpose too.
   
   SIM900.println("AT+CGATT?"); //Attach or Detach from GPRS Support
-  delay(100);
+  delay(50);
  
   ShowSerialData();
   SIM900.println("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"");//setting the SAPBR, the connection type is using gprs
-  delay(1000);
+  delay(500);
  
   ShowSerialData();
  
-  delay(2000);
+  delay(1000);
   SIM900.println("AT+SAPBR=3,1,\"APN\",\"" + String(APN) + "\"");
   
-  // delay(300);
-  // SIM900.println("AT+SAPBR=3,1,\"USER\",\"" + String(USER) + "\"");
+  delay(150);
+  SIM900.println("AT+SAPBR=3,1,\"USER\",\"" + String(USER) + "\"");
   
-  // delay(300);
-  // SIM900.println("AT+SAPBR=3,1,\"PWD\",\"" + String(PWD) + "\"");
+  delay(150);
+  SIM900.println("AT+SAPBR=3,1,\"PWD\",\"" + String(PWD) + "\"");
   
-  delay(1000);
+  delay(500);
  
   ShowSerialData();
  
   SIM900.println("AT+SAPBR=1,1");//setting the SAPBR
-  delay(1000);
+  delay(500);
  
   ShowSerialData();
  
   SIM900.println("AT+HTTPINIT"); //init the HTTP request
- 
-  delay(1000); 
+  delay(500); 
+  
+  SIM900.println("AT+HTTPPARA=\"CID\",1"); // Configure o contexto HTTP
+  delay(1000);
+  
   ShowSerialData();
  
   SIM900.println("AT+HTTPPARA=\"URL\",\"http://54.39.90.0:3000/test\"");// setting the httppara, the second parameter is the website you want to access
   delay(1000);
- 
+
+  // Configurar o cabeçalho HTTP para um POST
+  SIM900.println("AT+HTTPPARA=\"CONTENT\",\"application/json\"");
+  delay(1000);
+
+  ShowSerialData();
+
+  // Definir o comprimento dos dados POST
+  SIM900.print("AT+HTTPDATA=");
+  SIM900.println(jsonData.length());
+  delay(1000);
+
+  ShowSerialData();
+
+  // Enviar os dados JSON POST
+  SIM900.print(jsonData);
+  delay(1000);
+
   ShowSerialData();
  
-  SIM900.println("AT+HTTPACTION=0");//submit the request 
-  delay(10000);//the delay is very important, the delay time is base on the return from the website, if the return datas are very large, the time required longer.
+  SIM900.println("AT+HTTPACTION=1");//submit the request 
+  delay(2000);//the delay is very important, the delay time is base on the return from the website, if the return datas are very large, the time required longer.
   //while(!SIM900.available());
  
   ShowSerialData();
  
   SIM900.println("AT+HTTPREAD");// read the data from the website you access
-  delay(300);
+  delay(150);
   ShowSerialData();
  
   SIM900.println("");
-  delay(100);
+  delay(50);
 }
 
  
