@@ -101,6 +101,7 @@ void setup() {
       Serial.write(char (SIM900.read()));
     }
   }
+  
   Serial.println("SIM900 ok");
   Serial.println("");
   delay(5000);
@@ -142,16 +143,22 @@ void loop()
   Serial.println("");
   delay(500);
 
-  String jsonData = "{";
-jsonData += "\"acceleration_x\":" + String(a.acceleration.x) + ",";
-jsonData += "\"acceleration_y\":" + String(a.acceleration.y) + ",";
-jsonData += "\"acceleration_z\":" + String(a.acceleration.z) + ",";
-jsonData += "\"gyro_x\":" + String(g.gyro.x) + ",";
-jsonData += "\"gyro_y\":" + String(g.gyro.y) + ",";
-jsonData += "\"gyro_z\":" + String(g.gyro.z) + ",";
-jsonData += "\"temperature\":" + String(temp.temperature);
-jsonData += "}";
-
+  // String jsonData = "{";
+  // jsonData += "\"acceleration_x\":" + String(a.acceleration.x) + ",";
+  // jsonData += "\"acceleration_y\":" + String(a.acceleration.y) + ",";
+  // jsonData += "\"acceleration_z\":" + String(a.acceleration.z) + ",";
+  // jsonData += "\"gyro_x\":" + String(g.gyro.x) + ",";
+  // jsonData += "\"gyro_y\":" + String(g.gyro.y) + ",";
+  // jsonData += "\"gyro_z\":" + String(g.gyro.z) + ",";
+  // jsonData += "\"temperature\":" + String(temp.temperature);
+  // jsonData += "}";
+  String jsonData = "acceleration_x=" + String((int)a.acceleration.x) + "&";
+  jsonData += "acceleration_y=" + String((int)a.acceleration.y) + "&";
+  jsonData += "acceleration_z=" + String((int)a.acceleration.z) + "&";
+  jsonData += "gyro_x=" + String((int)g.gyro.x) + "&";
+  jsonData += "gyro_y=" + String((int)g.gyro.y) + "&";
+  jsonData += "gyro_z=" + String((int)g.gyro.z) + "&";
+  jsonData += "temperature=" + String((int)temp.temperature);
 
   if (SIM900.available())
   {
@@ -171,15 +178,17 @@ jsonData += "}";
     if ( currentmillis - previousmillis > interval )
     {
       previousmillis = currentmillis;
-      SIM900.begin(19200);
+      delay(500);
+      SIM900.println("AT+CSQ"); // Signal quality check
+      delay(500);
+      Serial.write(char (SIM900.read()));
     }
   }
 
 }
 
-void SubmitHttpRequest(String jsonData)
+void StartProcesso()
 {
- 
   SIM900.println("AT+CSQ"); // Signal quality check
 
   delay(50);
@@ -213,6 +222,11 @@ void SubmitHttpRequest(String jsonData)
  
   ShowSerialData();
  
+}
+
+void SubmitHttpRequest(String jsonData)
+{
+  StartProcesso();
   SIM900.println("AT+HTTPINIT"); //init the HTTP request
   delay(500); 
   
@@ -220,30 +234,37 @@ void SubmitHttpRequest(String jsonData)
   delay(1000);
   
   ShowSerialData();
+
+  String urlfinal = "AT+HTTPPARA=\"URL\",\"";
+  urlfinal += "http://54.39.90.0:3000/test?";
+  urlfinal += jsonData;
+  urlfinal += "\"";
+
+  Serial.println(urlfinal);
  
-  SIM900.println("AT+HTTPPARA=\"URL\",\"http://54.39.90.0:3000/test\"");// setting the httppara, the second parameter is the website you want to access
+  SIM900.println(urlfinal);// setting the httppara, the second parameter is the website you want to access
   delay(1000);
 
-  // Configurar o cabeçalho HTTP para um POST
-  SIM900.println("AT+HTTPPARA=\"CONTENT\",\"application/json\"");
-  delay(1000);
+  // // Configurar o cabeçalho HTTP para um POST
+  // SIM900.println("AT+HTTPPARA=\"CONTENT\",\"application/json\"");
+  // delay(1000);
 
   ShowSerialData();
 
-  // Definir o comprimento dos dados POST
-  SIM900.print("AT+HTTPDATA=");
-  SIM900.println(jsonData.length());
-  delay(1000);
+  // // Definir o comprimento dos dados POST
+  // SIM900.print("AT+HTTPDATA=");
+  // SIM900.println(jsonData.length());
+  // delay(1000);
 
-  ShowSerialData();
+  // ShowSerialData();
 
-  // Enviar os dados JSON POST
-  SIM900.print(jsonData);
-  delay(1000);
+  // // Enviar os dados JSON POST
+  // SIM900.print(jsonData);
+  // delay(1000);
 
-  ShowSerialData();
+  // ShowSerialData();
  
-  SIM900.println("AT+HTTPACTION=1");//submit the request 
+  SIM900.println("AT+HTTPACTION=0");//submit the request 
   delay(2000);//the delay is very important, the delay time is base on the return from the website, if the return datas are very large, the time required longer.
   //while(!SIM900.available());
  
