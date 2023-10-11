@@ -18,8 +18,8 @@ const char* PWD = "vivo";
 
 void setup() {     
   Wire.begin();  
-  SIM900.begin(9600);
-  Serial.begin(9600); 
+  SIM900.begin(19200);
+  Serial.begin(19200); 
   while (!Serial)
     delay(10);
   Serial.println("power up" );
@@ -191,12 +191,24 @@ void StartProcesso()
 {
   SIM900.println("AT+CSQ"); // Signal quality check
 
-  delay(50);
+  delay(500);
  
   ShowSerialData();// this code is to show the data from gprs shield, in order to easily see the process of how the gprs shield submit a http request, and the following is for this purpose too.
   
+  SIM900.println("AT+CGREG?"); //   
+
+  delay(500);
+ 
+  ShowSerialData();//
+
+  SIM900.println("AT+CGREG=2"); // 
+
+  delay(500);
+ 
+  ShowSerialData();//
+
   SIM900.println("AT+CGATT?"); //Attach or Detach from GPRS Support
-  delay(50);
+  delay(500);
  
   ShowSerialData();
   SIM900.println("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"");//setting the SAPBR, the connection type is using gprs
@@ -207,10 +219,10 @@ void StartProcesso()
   delay(1000);
   SIM900.println("AT+SAPBR=3,1,\"APN\",\"" + String(APN) + "\"");
   
-  delay(150);
+  delay(500);
   SIM900.println("AT+SAPBR=3,1,\"USER\",\"" + String(USER) + "\"");
   
-  delay(150);
+  delay(500);
   SIM900.println("AT+SAPBR=3,1,\"PWD\",\"" + String(PWD) + "\"");
   
   delay(500);
